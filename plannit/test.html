@@ -93,9 +93,6 @@
 		footer > a:hover {
 			color: black;
 		}
-		[placeholder] {
-			color: gray;
-		}
 		.nav-logo {
 			width: 130px;
 			height: 50px;
@@ -117,26 +114,43 @@
 		}
 		.row {
 			display: flex;
-			flex-wrap: wrap;
+			flex-wrap: wrap-reverse;
 			margin-left: -5px;
 			margin-right: -5px;
 		}
-		.row > * {
+		.row::after {
+			content: "";
+			clear: both;
+			display: table;
+		}
+		[class*="col-"] {
 			flex: 0 0 auto;
 			flex-shrink: 0;
-			width: 100%;
-			max-width: 100%;
 			padding-left: 5px;
 			padding-right: 5px;
 		}
-		.col-full {
-			width: 100%;
+		@media (max-width: 992px) {
+			[class*="col-"] {
+				width: 100%;
+			}
+			nav, main {
+				margin-left: 2%;
+				margin-right: 2%;
+			}
 		}
-		.col-main {
-			width: 66.67%
-		}
-		.col-sdbr {
-			width: 33.33%;
+		@media (min-width: 993px) {
+			.col-1 {width: 8.33%;}
+			.col-2 {width: 16.66%;}
+			.col-3 {width: 25%;}
+			.col-4 {width: 33.33%;}
+			.col-5 {width: 41.66%;}
+			.col-6 {width: 50%;}
+			.col-7 {width: 58.33%;}
+			.col-8 {width: 66.66%;}
+			.col-9 {width: 75%;}
+			.col-10 {width: 83.33%;}
+			.col-11 {width: 91.66%;}
+			.col-12 {width: 100%;}
 		}
 		.container {
 			border: 2px solid;
@@ -173,6 +187,13 @@
 		}
 		.col-txt {
 			width: calc(100% - var(--user-img-col-width));
+		}
+		.cnt-img {
+			width: var(--user-img-col-width);
+			float: left;
+		}
+		.cnt-txt {
+			margin-left: var(--user-img-col-width);
 		}
 		.cnt-header {
 			border-bottom: 1px solid;
@@ -340,7 +361,7 @@
 	</header>
 	<main>
 		<div class="row">
-			<div class="col-full">
+			<div class="col-12">
 				<div class="container success pd10">
 					Your event has been successfully created!
 				</div>
@@ -356,7 +377,41 @@
 			</div>
 		</div>
 		<div class="row">
-			<div class="col-main">
+			<div class="col-8">
+				<div class="container content pd5">
+					<div class="cnt-img">
+						<a href="#"><img class="user-img" src="default.jpg"></a>
+					</div>
+					<div class="cnt-txt">
+						<div class="cnt-header">
+							<div class="cnt-title">
+								<a href="#">CS 324 Review 1</a>
+								<form class="rsvp">
+									<button class="btn-success rsvp-btn">Going</button>
+									<button class="btn-failure rsvp-btn">Not going</button>
+								</form>
+							</div>
+							<div class="cnt-info">
+								<div class="event-info">
+									<img src="time-24.png" class="icon">September 16, 2021
+								</div>
+								<div class="event-info">
+									<img src="location-24.png" class="icon">7300 Guilford Dr, Frederick, MD 21704
+								</div>
+								<div class="event-info">
+									<img src="weather-24.png" class="icon">Partly cloudy, 15% chance of rain
+								</div>
+							</div>
+						</div>
+						<div class="cnt-body">
+							Blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
+							blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
+						</div>
+						<div class="cnt-footer">
+							<small class="cnt-meta">Posted by <a href="#">Brandon</a> on 09/14/2021</small>
+						</div>
+					</div>
+				</div>
 				<div class="container content pd5">
 					<div class="row">
 						<div class="col-img">
@@ -365,7 +420,7 @@
 						<div class="col-txt">
 							<div class="cnt-header">
 								<div class="cnt-title">
-									<a href="#">CS 324 Review 1</a>
+									<a href="#">CS 324 Review 2</a>
 									<form class="rsvp">
 										<button class="btn-success rsvp-btn">Going</button>
 										<button class="btn-failure rsvp-btn">Not going</button>
@@ -373,7 +428,7 @@
 								</div>
 								<div class="cnt-info">
 									<div class="event-info">
-										<img src="time-24.png" class="icon">September 16, 2021
+										<img src="time-24.png" class="icon">October 12, 2021
 									</div>
 									<div class="event-info">
 										<img src="location-24.png" class="icon">7300 Guilford Dr, Frederick, MD 21704
@@ -438,7 +493,7 @@
 					Hello World</br>
 				</div>
 			</div>
-			<div class="col-sdbr">
+			<div class="col-4">
 				<div class="container content">
 					<a class="sdbr-btn rnd-top" href="#">Notifications (0)</a>
 					<a class="sdbr-btn" href="#">Create Event</a>
