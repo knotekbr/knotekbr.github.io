@@ -19,6 +19,8 @@
 			--user-img-col-width: 110px;
 			
 			/* Color definitions */
+			--nav-dark: #00acff;
+			--nav-light: #00beff;
 			--success-dark: hsl(120, 100%, 40%);
 			--success-light: hsl(120, 100%, 75%);
 			--failure-dark: hsl(0, 100%, 50%);
@@ -49,13 +51,6 @@
 			width: 100%;
 			box-shadow: 0 3px 4px gray;
 		}
-		nav {
-			height: 50px;
-			display: flex;
-			vertical-align: top;
-			margin-left: 15%;
-			margin-right: 15%;
-		}
 		main {
 			margin-top: 60px;
 			margin-left: 15%;
@@ -73,7 +68,7 @@
 			color: white;
 			cursor: pointer;
 		}
-		button:active {
+		button:active, input[type=submit]:active {
 			transition: none;
 		}
 		fieldset {
@@ -93,6 +88,34 @@
 		footer > a:hover {
 			color: black;
 		}
+		.nav-bar {
+			height: 50px;
+			display: flex;
+			vertical-align: top;
+			margin-left: 15%;
+			margin-right: 15%;
+			overflow: hidden;
+		}
+		.nav-full {
+			display: flex;
+			width: 100%;
+		}
+		.nav-responsive {
+			position: fixed;
+			top: 50px;
+			right: 2%;
+			background: #00beff;
+			overflow: hidden;
+			text-align: center;
+		}
+		.nav-left {
+			display: flex;
+			margin-right: auto;
+		}
+		.nav-right {
+			display: flex;
+			margin-left: auto;
+		}
 		.nav-logo {
 			width: 130px;
 			height: 50px;
@@ -109,8 +132,17 @@
 		.nav-btn:hover {
 			background: #00acff;
 		}
-		.float-rt {
-			margin-left: auto;
+		.nav-icon {
+			display: none;
+		}
+		@media (max-width: 992px) {
+			.nav-left, .nav-right {
+				display: none;
+			}
+			.nav-icon {
+				display: block;
+				margin-left: auto;
+			}
 		}
 		.row {
 			display: flex;
@@ -133,7 +165,7 @@
 			[class*="col-"] {
 				width: 100%;
 			}
-			nav, main {
+			.nav-bar, main {
 				margin-left: 2%;
 				margin-right: 2%;
 			}
@@ -350,13 +382,20 @@
 </head>
 <body>
 	<header>
-		<nav>
+		<nav class="nav-bar">
 			<a href="#"><img class="nav-logo" src="plannit.png" alt="logo"></a>
-			<a class="nav-btn" href="#">Home</a>
-			<a class="nav-btn" href="#">Events</a>
-			<a class="nav-btn" href="#">Friends</a>
-			<a class="nav-btn float-rt" href="#">Log In</a>
-			<a class="nav-btn" href="#">Sign Up</a>
+			<div class="nav-full" id="fullnav">
+				<div class="nav-left" id="leftnav">
+					<a class="nav-btn" href="#">Home</a>
+					<a class="nav-btn" href="#">Events</a>
+					<a class="nav-btn" href="#">Friends</a>
+				</div>
+				<div class="nav-right" id="rightnav">
+					<a class="nav-btn" href="#">Log In</a>
+					<a class="nav-btn" href="#">Sign Up</a>
+				</div>
+			</div>
+			<a href="javascript:void(0);" class="nav-btn nav-icon" onclick="toggleNav()" id="navicon"><img src="nav-icon.png"></a>
 		</nav>
 	</header>
 	<main>
@@ -507,6 +546,8 @@
 	</main>
 	<script>
 		const textareas = document.getElementsByTagName("textarea");
+		var isExpanded = false;
+		
 		for (let i = 0; i < textareas.length; i++) {
 			textareas[i].setAttribute("style", "height:" + (textareas[i].scrollHeight + 5) + "px;padding:5px;overflow-y:hidden;");
 			textareas[i].addEventListener("input", OnInput, false);
@@ -515,6 +556,39 @@
 		function OnInput() {
 			this.style.height = "auto";
 			this.style.height = (this.scrollHeight + 5) + "px";
+		}
+		
+		function toggleNav() {
+			if (isExpanded == false) { expandNav(); }
+			else { collapseNav(); }
+		}
+		
+		function expandNav() {
+			var full = document.getElementById("fullnav");
+			var icon = document.getElementById("navicon");
+			var left = document.getElementById("leftnav");
+			var right = document.getElementById("rightnav");
+			
+			icon.style.background = "var(--nav-dark)";
+			left.className = "";
+			right.className = "";
+			full.className = "nav-responsive";
+			
+			isExpanded = true;
+		}
+		
+		function collapseNav() {
+			var full = document.getElementById("fullnav");
+			var icon = document.getElementById("navicon");
+			var left = document.getElementById("leftnav");
+			var right = document.getElementById("rightnav");
+			
+			icon.style.background = "var(--nav-light)";
+			left.className = "nav-left";
+			right.className = "nav-right";
+			full.className = "nav-full";
+			
+			isExpanded = false;
 		}
 	</script>
 </body>
