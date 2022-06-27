@@ -6,8 +6,16 @@ body {
     margin: 0;
     width: 100vw;
     height: 100vh;
-    background: black;
+    overflow: hidden;
+    background: #232323;
     font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
 }
 
 #wrapper {
@@ -17,9 +25,10 @@ body {
     align-items: center;
     justify-content: center;
     perspective: 500px;
+    z-index: 1;
 }
 
-#panel:not(.reading) {
+#panel {
     --x-rot: 0;
     --y-rot: 0;
 
@@ -40,7 +49,6 @@ body {
     align-items: center;
     justify-content: center;
     padding: 0.5em;
-    box-shadow: 0 0 0 0 black;
     transition: transform 0.25s ease;
     transform-style: inherit;
     z-index: 1;
@@ -48,6 +56,7 @@ body {
     background-color: var(--item-color);
     box-shadow: 0 0 10px 2px var(--item-color);
     font-size: 18pt;
+    cursor: pointer;
 }
 
 .item::before {
