@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Polygon Test</title>
+
+    <link rel="stylesheet" type="text/css" href="static/main.css" />
+  </head>
+  <body>
+    <div id="ui-container">
+      <div id="ui-panel">
+        <span id="test-btn" class="btn">Run Tests</span>
+        <span class="test-results">Test Point: <span id="contains-res">n/a</span></span>
+        <span class="test-results">Convex: <span id="convex-res">n/a</span></span>
+        <span class="test-results">Self-Intersects: <span id="intersects-res">n/a</span></span>
+      </div>
+      <div id="directions-panel">
+        <span class="title">Directions</span>
+        <ul>
+          <li>Click in the white space to add vertices</li>
+          <li>Click and drag a vertex to move it</li>
+          <li>The red point is the test point, and it can also be moved</li>
+          <li>Click <i>Run Tests</i> to test the polygon</li>
+          <!-- <li>Hover over test results for more information</li> -->
+        </ul>
+      </div>
+    </div>
+    <script type="module" src="dist/index.js" async defer></script>
+  </body>
+</html>

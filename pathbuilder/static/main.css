@@ -1,0 +1,77 @@
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+ul {
+  margin: 0;
+  padding-inline-start: 20px;
+}
+
+#ui-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+
+#ui-panel,
+#directions-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  width: 300px;
+  padding: 10px;
+
+  border: 1px solid black;
+}
+
+.btn {
+  background-color: hsl(217, 90%, 61%);
+  color: white;
+  border: 1px solid black;
+  border-radius: 5pt;
+
+  padding-block: 2pt;
+  padding-inline: 5pt;
+  text-align: center;
+  font-weight: bold;
+
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn:hover {
+  background-color: hsl(217, 90%, 70%);
+}
+
+.btn:active {
+  border-color: hsl(217, 90%, 61%);
+}
+
+.test-results {
+  font-weight: bold;
+}
+
+.test-results > span {
+  font-weight: normal;
+}
+
+.title {
+  text-align: center;
+  font-size: large;
+  font-weight: bold;
+}

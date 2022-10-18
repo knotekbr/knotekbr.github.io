@@ -1,0 +1,15 @@
+svg {
+  cursor: crosshair;
+}
+
+#test-point {
+  fill: rgba(255, 0, 0, 1);
+}
+
+.movable {
+  cursor: move;
+}
+
+.selected {
+  stroke: rgba(255, 0, 0, 0.5);
+}
