@@ -53,7 +53,7 @@ export default class Polygon {
             }
         });
         // Create an SVG element to represent the test point and append it to the root container
-        this.#testPoint = new Vertex(container.clientWidth / 2, container.clientHeight / 2, "test-point");
+        this.#testPoint = new Vertex(container.clientWidth / 2, container.clientHeight / 2, "test-point", undefined, undefined, () => this.selectVertex());
         this.#container.appendChild(this.#testPoint.vtxElement);
         this.#vtxPQ = new MappedMinHeap((value) => value.id, (value) => value.x);
     }
@@ -229,6 +229,8 @@ export default class Polygon {
         this.#virtualEdgeGroup.innerHTML = "";
         this.#convex = this.#clockwise = this.#intersects = false;
         this.#vtxPQ.clear();
+        this.#testPoint.x = this.#container.clientWidth / 2;
+        this.#testPoint.y = this.#container.clientHeight / 2;
     }
     clearPath() {
         this.#virtualEdgeGroup.innerHTML = "";
