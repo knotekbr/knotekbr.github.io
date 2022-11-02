@@ -1,5 +1,5 @@
-import ccw from "./ccw.js";
+import clockwise from "./clockwise.js";
 export default function intersects(vtxOne, vtxTwo, vtxThree, vtxFour) {
-    return (ccw(vtxOne, vtxThree, vtxFour) != ccw(vtxTwo, vtxThree, vtxFour) &&
-        ccw(vtxOne, vtxTwo, vtxThree) != ccw(vtxOne, vtxTwo, vtxFour));
+    return (clockwise(vtxOne, vtxThree, vtxFour) != clockwise(vtxTwo, vtxThree, vtxFour) &&
+        clockwise(vtxOne, vtxTwo, vtxThree) != clockwise(vtxOne, vtxTwo, vtxFour));
 }

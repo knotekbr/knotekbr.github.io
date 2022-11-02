@@ -10,20 +10,45 @@
   </head>
   <body>
     <div id="ui-container">
+      <!--
       <div id="ui-panel">
-        <span id="test-btn" class="btn">Run Tests</span>
-        <span class="test-results">Test Point: <span id="contains-res">n/a</span></span>
-        <span class="test-results">Convex: <span id="convex-res">n/a</span></span>
-        <span class="test-results">Self-Intersects: <span id="intersects-res">n/a</span></span>
+        <div class="tool-btn" id="test-btn" title="Move Tool (V)">
+          <img class="tool-icon" src="static/img/select.svg" />
+        </div>
+        <div class="tool-btn selected" title="Vertex Creation Tool (A)">
+          <img class="tool-icon" src="static/img/add-vtx.svg" />
+        </div>
+        <div class="tool-btn" title="Vertex Deletion Tool (D)">
+          <img class="tool-icon" src="static/img/rmv-vtx.svg" />
+        </div>
+      </div>
+      -->
+      <div id="test-ui-panel">
+        <span class="title">Build</span>
+        <div class="row">
+          <span class="txt-btn" id="verticals-btn">Verticals</span>
+          <span class="txt-btn" id="path-btn">Path</span>
+        </div>
+        <span class="title">Tools</span>
+        <span class="txt-btn" id="clear-path-btn">Clear Path</span>
+        <span class="txt-btn" id="show-hide-btn">Hide Polygon</span>
+        <span class="txt-btn" id="reset-btn">Reset Tool</span>
       </div>
       <div id="directions-panel">
         <span class="title">Directions</span>
         <ul>
           <li>Click in the white space to add vertices</li>
           <li>Click and drag a vertex to move it</li>
-          <li>The red point is the test point, and it can also be moved</li>
-          <li>Click <i>Run Tests</i> to test the polygon</li>
-          <!-- <li>Hover over test results for more information</li> -->
+          <li>
+            <b>Verticals</b> button draws vertical lines labeled with colors to show the order of
+            stacked lines (R &gt; O &gt; Y &gt; G &gt; B &gt; I &gt; V)
+          </li>
+          <li>
+            <b>Path</b> generates a path (<i>very</i> beta, only reliable for simple polygons)
+          </li>
+          <li><b>Clear Path</b> removes any generated verticals or path</li>
+          <li><b>Hide/Show Polygon</b> allows toggling the polygon to easily view the path</li>
+          <li><b>Reset Tool</b> clears the polygon and any verticals/path</li>
         </ul>
       </div>
     </div>

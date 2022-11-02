@@ -1,3 +1,9 @@
+:root {
+  --icon-size: 25px;
+  --icon-pad: 2px;
+  --icon-btn-size: calc(var(--icon-size) + 2 * var(--icon-pad));
+}
+
 *,
 ::before,
 ::after {
@@ -20,26 +26,72 @@ ul {
 #ui-container {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 10px;
 
   position: absolute;
   top: 10px;
   left: 10px;
+  cursor: url("img/select.svg") 8 4, auto;
+}
+
+#test-ui-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  width: 300px;
+  border-radius: 5px;
+  padding: 5px;
+
+  border: 1px solid black;
 }
 
 #ui-panel,
 #directions-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 2px;
 
-  width: 300px;
-  padding: 10px;
+  max-width: 300px;
+  padding: 2px;
 
   border: 1px solid black;
 }
 
-.btn {
+.row {
+  display: flex;
+  justify-content: space-around;
+  gap: 5px;
+}
+
+.row > span {
+  flex: 1;
+}
+
+.tool-icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.tool-btn {
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  padding: var(--icon-pad);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.tool-btn.selected {
+  background-color: lightblue;
+  border: 1px solid cadetblue;
+}
+
+.tool-btn:hover {
+  background-color: lightblue;
+}
+
+.txt-btn {
   background-color: hsl(217, 90%, 61%);
   color: white;
   border: 1px solid black;
@@ -54,20 +106,12 @@ ul {
   user-select: none;
 }
 
-.btn:hover {
-  background-color: hsl(217, 90%, 70%);
+.txt-btn:hover {
+  box-shadow: inset 3px 3px 10px #ffffff88;
 }
 
-.btn:active {
-  border-color: hsl(217, 90%, 61%);
-}
-
-.test-results {
-  font-weight: bold;
-}
-
-.test-results > span {
-  font-weight: normal;
+.txt-btn:active {
+  box-shadow: inset 5px 5px 10px #00000088;
 }
 
 .title {

@@ -1,8 +1,17 @@
 import Polygon from "./elements/polygon.js";
 import createSVGElement from "./helpers/createSVGElement.js";
+// Tool constants
+const SELECT = 0;
+const CREATE = 1;
+const DELETE = 2;
 export default class App {
     #polygon;
+    #selectedTool = 0;
     constructor(root = document.body) {
+        this.#polygon = new Polygon(this.#initSVG(root));
+        this.#initUI();
+    }
+    #initSVG(root) {
         const rootWidth = root.clientWidth;
         const rootHeight = root.clientHeight;
         const svg = createSVGElement("svg", {
@@ -17,29 +26,30 @@ export default class App {
         stylesLink.setAttribute("href", "static/svg.css");
         svg.appendChild(stylesLink);
         root.appendChild(svg);
-        this.#polygon = new Polygon(svg);
-        const testBtn = document.getElementById("test-btn") || document.createElement("span");
-        const containsRes = document.getElementById("contains-res") || document.createElement("span");
-        const convexRes = document.getElementById("convex-res") || document.createElement("span");
-        const intersectsRes = document.getElementById("intersects-res") || document.createElement("span");
-        testBtn.addEventListener("pointerdown", () => {
-            if (this.#polygon.containsPoint()) {
-                containsRes.innerText = "Inside";
-            }
-            else {
-                containsRes.innerText = "Outside";
-            }
-            if (this.#polygon.isConvex()) {
-                convexRes.innerText = "True";
-            }
-            else {
-                convexRes.innerText = "False";
-            }
-            if (this.#polygon.intersectsSelf()) {
-                intersectsRes.innerText = "True";
-            }
-            else {
-                intersectsRes.innerText = "False";
+        return svg;
+    }
+    #initUI() {
+        const verticalsBtn = document.getElementById("verticals-btn");
+        const pathBtn = document.getElementById("path-btn");
+        const clearPathBtn = document.getElementById("clear-path-btn");
+        const showHideBtn = document.getElementById("show-hide-btn");
+        const resetBtn = document.getElementById("reset-btn");
+        verticalsBtn.addEventListener("pointerdown", () => {
+            this.#polygon.planeSweep(false);
+        });
+        pathBtn.addEventListener("pointerdown", () => {
+            this.#polygon.planeSweep(true);
+        });
+        clearPathBtn.addEventListener("pointerdown", () => {
+            this.#polygon.clearPath();
+        });
+        showHideBtn.addEventListener("pointerdown", () => {
+            showHideBtn.innerText = this.#polygon.toggleVisibility();
+        });
+        resetBtn.addEventListener("pointerdown", () => {
+            this.#polygon.reset();
+            if (!this.#polygon.visible) {
+                showHideBtn.innerText = this.#polygon.toggleVisibility();
             }
         });
     }

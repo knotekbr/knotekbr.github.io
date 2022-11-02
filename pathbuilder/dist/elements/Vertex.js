@@ -1,3 +1,4 @@
+import clockwise from "../helpers/clockwise.js";
 import createSVGElement from "../helpers/createSVGElement.js";
 /**
  * Class representing a polygon vertex
@@ -14,25 +15,35 @@ export default class Vertex {
     #x;
     #y;
     #id;
+    #clockwise = false;
     // SVG elements associated with the vertex
     #vtxElement;
     #edgeElement;
     // Neighboring vertices
     #prevNeighbor;
     #nextNeighbor;
+    // Callback functions for notifying the parent polygon of changes
+    #selectFn;
+    #updateFn;
     /**
      * Creates a new vertex
      *
      * @param {number} x - The vertex's x-coordinate
      * @param {number} y - The vertex's y-coordinate
      * @param {string} id - The vertex's id
-     * @param {Neighbor} prevNeighbor - The vertex's previous neighbor vertex
-     * @param {Neighbor} nextNeighbor - The vertex's next neighbor vertex
+     * @param {Neighbor} [prevNeighbor] - (Optional) The vertex's previous neighbor vertex
+     * @param {Neighbor} [nextNeighbor] - (Optional) The vertex's next neighbor vertex
+     * @param {PolygonCallback} [selectFn] - (Optional) A callback function to be called when the
+     * vertex is selected
+     * @param {PolygonCallback} [updateFn] - (Optional) A callback function to be called after the
+     * vertex is moved
      */
-    constructor(x, y, id, prevNeighbor, nextNeighbor) {
+    constructor(x, y, id, prevNeighbor, nextNeighbor, selectFn, updateFn) {
         this.#x = x;
         this.#y = y;
         this.#id = id;
+        this.#selectFn = selectFn;
+        this.#updateFn = updateFn;
         // Create the SVG element that represents this vertex
         this.#vtxElement = createSVGElement("circle", {
             ...Vertex.#vtxAttrs,
@@ -51,10 +62,20 @@ export default class Vertex {
             // Pointerup listener removes the pointermove listener when the vertex element is released
             window.addEventListener("pointerup", () => {
                 window.removeEventListener("pointermove", this.#handleDrag);
+                // Make sure this doesn't break everything:
+                requestAnimationFrame(() => {
+                    // Update the oritentations of the vertex and its neighbors
+                    this.updateNeighborhoodOrientation();
+                    // Callback to update properties of parent polygon
+                    if (this.#updateFn) {
+                        this.#updateFn(this);
+                    }
+                });
             }, { once: true });
-            // Dispatch a custom event indicating that the vertex was selected
-            const selectedEvent = new CustomEvent("vertexselected", { bubbles: true, detail: this.#id });
-            this.#vtxElement.dispatchEvent(selectedEvent);
+            // Callback to notify parent polygon of vertex selection
+            if (this.#selectFn) {
+                this.#selectFn(this);
+            }
         });
         // Create the SVG element that represents the edge from this vertex to the next vertex
         this.#edgeElement = createSVGElement("line", {
@@ -69,6 +90,8 @@ export default class Vertex {
         // still using logic in the setter blocks
         this.#prevNeighbor = this.prevNeighbor = prevNeighbor || this;
         this.#nextNeighbor = this.nextNeighbor = nextNeighbor || this;
+        // Set the initial orientation of the vertex and update the orientations of its neighbors
+        this.updateNeighborhoodOrientation();
     }
     /**
      * The vertex's x-coordinate
@@ -109,6 +132,12 @@ export default class Vertex {
         return this.#id;
     }
     /**
+     * True if the vertex is oriented clockwise, false otherwise
+     */
+    get clockwise() {
+        return this.#clockwise;
+    }
+    /**
      * The vertex's previous neighboring vertex
      */
     get prevNeighbor() {
@@ -131,6 +160,24 @@ export default class Vertex {
             x2: `${neighbor.#x}`,
             y2: `${neighbor.#y}`,
         });
+    }
+    /**
+     * Updates the clockwise property of this vertex and both of its neighboring vertices
+     */
+    updateNeighborhoodOrientation() {
+        // Calling clockwise() with the one-argument overload does not work here. Possibly because of
+        // DOM updates slowing down getter propagation?
+        this.#clockwise = clockwise(this.#prevNeighbor, this, this.#nextNeighbor);
+        this.#prevNeighbor.#clockwise = clockwise(this.#prevNeighbor.#prevNeighbor, this.#prevNeighbor, this);
+        this.#nextNeighbor.#clockwise = clockwise(this, this.#nextNeighbor, this.#nextNeighbor.#nextNeighbor);
+    }
+    /**
+     * Returns a string representation of the vertex
+     *
+     * @returns A string representation of the vertex
+     */
+    toString() {
+        return `Vertex: {x: ${this.#x}, y: ${this.#y}, id: ${this.#id}}`;
     }
     /**
      * Updates the vertex's coordinates and associated SVG elements in response to pointermove events
