@@ -24,11 +24,7 @@
       </div>
       -->
       <div id="test-ui-panel">
-        <span class="title">Build</span>
-        <div class="row">
-          <span class="txt-btn" id="verticals-btn">Verticals</span>
-          <span class="txt-btn" id="path-btn">Path</span>
-        </div>
+        <span class="txt-btn" id="path-btn">Build Path</span>
         <span class="title">Tools</span>
         <span class="txt-btn" id="clear-path-btn">Clear Path</span>
         <span class="txt-btn" id="show-hide-btn">Hide Polygon</span>
@@ -39,18 +35,25 @@
         <ul>
           <li>Click in the white space to add vertices</li>
           <li>Click and drag a vertex to move it</li>
-          <li>The red point (path start/end) can be moved, but not deleted</li>
           <li>
-            <b>Verticals</b> button draws vertical lines labeled with colors to show the order of
-            stacked lines (R &gt; O &gt; Y &gt; G &gt; B &gt; I &gt; V)
+            The red point (path start/end) currently has no effect
+            <!-- can be moved, but not deleted -->
           </li>
           <li>
-            <b>Path</b> generates a path (<i>very</i> beta, only reliable for simple polygons),
-            starting and ending at the red point
+            <b>Build Path</b> will generate the path that covers the polygon
+            <ul>
+              <li>The path is displayed as red lines</li>
+              <li>A blue circle traces the path to show waypoint order</li>
+              <li>
+                Regions generated during this process are displayed as multicolored backgrounds
+              </li>
+            </ul>
           </li>
-          <li><b>Clear Path</b> removes any generated verticals or path</li>
-          <li><b>Hide/Show Polygon</b> allows toggling the polygon to easily view the path</li>
-          <li><b>Reset Tool</b> clears the polygon and any verticals/path</li>
+          <li><b>Clear Path</b> removes the existing path, region, and trace animation</li>
+          <li>
+            <b>Hide/Show Polygon</b> toggles polygon visibility to make the path easier to view
+          </li>
+          <li><b>Reset Tool</b> clears the polygon, path, regions, and trace animation</li>
         </ul>
       </div>
     </div>

@@ -29,14 +29,10 @@ export default class App {
         return svg;
     }
     #initUI() {
-        const verticalsBtn = document.getElementById("verticals-btn");
         const pathBtn = document.getElementById("path-btn");
         const clearPathBtn = document.getElementById("clear-path-btn");
         const showHideBtn = document.getElementById("show-hide-btn");
         const resetBtn = document.getElementById("reset-btn");
-        verticalsBtn.addEventListener("pointerdown", () => {
-            this.#polygon.planeSweep(false);
-        });
         pathBtn.addEventListener("pointerdown", () => {
             this.#polygon.planeSweep(true);
         });

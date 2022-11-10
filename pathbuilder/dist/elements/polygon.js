@@ -1,11 +1,12 @@
 import Vertex from "./Vertex.js";
+import Edge from "./Edge.js";
 import uid from "../helpers/uid.js";
 import createSVGElement from "../helpers/createSVGElement.js";
 import intersects from "../helpers/intersects.js";
 import MappedMinHeap from "../helpers/MappedMinHeap.js";
 import EdgeRBT from "../helpers/EdgeRBT.js";
-import pathify from "../helpers/pathify.js";
 import slope from "../helpers/slope.js";
+import pathifyRegions from "../helpers/pathifyRegions.js";
 /**
  * Class representing a polygon
  */
@@ -254,10 +255,11 @@ export default class Polygon {
         // Copy of the priority queue holding vertices sorted by x-coordinate
         const pq = new MappedMinHeap(this.#vtxPQ);
         // Modified red black tree to hold edges as they're encountered
-        const edgeTree = new EdgeRBT(({ from, to }, coord) => from.y + (to.y - from.y) * ((coord - from.x) / (to.x - from.x)));
+        const edgeTree = new EdgeRBT(({ from, to }, coord) => from.y + (to.y - from.y) * ((coord - from.x) / (to.x - from.x)), this.#clockwise);
         // Array of objects containing info for drawing SVG elements after the algorithm completes
         const lineCoords = [];
         const edgeEvents = [];
+        const diagonals = [];
         // The x-coordinate of the previous plane sweep event is stored to help deal with vertical edges
         let prevX = Number.MIN_SAFE_INTEGER;
         // Position and step size of the secondary sweep line that generates evenly-spaced vertical
@@ -268,7 +270,6 @@ export default class Polygon {
         this.#virtualEdgeGroup.innerHTML = "";
         // For each vertex in the priority queue
         while (pq.size > 0) {
-            console.groupCollapsed(`Plane Sweep (${pq.size} vertices remain)`);
             let currVtx = pq.removeMin();
             // currVtx2 can change if vertical edges are encountered. This allows us to only consider the
             // edges at the top and bottom of a vertical stretch even though they don't share an endpoint
@@ -277,9 +278,7 @@ export default class Polygon {
             let nextVtx = currVtx.nextNeighbor;
             let prevEdgeID = `${prevVtx.id}${currVtx.id}`;
             let nextEdgeID = `${currVtx.id}${nextVtx.id}`;
-            console.log("Checking if trailing sweep needs to be stepped...");
             while (pos < currVtx.x) {
-                console.log("Trailing sweep step");
                 // Store the x-coordinate and all y-coordinates of the vertical lines present at this sweep
                 // line position. Y-coordinates are ordered bottom-to-top via infix tree traversal
                 lineCoords.push({ primary: pos, cross: edgeTree.getCoordinateArray(pos) });
@@ -288,18 +287,13 @@ export default class Polygon {
             if (pos > currVtx.x && currVtx.clockwise != this.#clockwise && currVtx.x != prevX) {
                 lineCoords.push({ primary: currVtx.x, cross: edgeTree.getCoordinateArray(currVtx.x) });
             }
-            console.log("Done stepping trailing sweep");
-            console.log("Checking for verticality...");
             if (prevVtx.x == currVtx.x || nextVtx.x == currVtx.x) {
                 // If the current vertex is aligned vertically relative to one of its neighbors
                 if (currVtx.x == prevX) {
                     // If another vertex in this vertical stretch has already been handled, skip this vertex
-                    console.log("Verticality already handled, continuing...");
-                    console.groupEnd();
                     continue;
                 }
                 if (nextVtx.x == currVtx.x) {
-                    console.log("Stepping nextVtx forward");
                     // If 'nextVtx' is in the vertical stretch, update it to be the next non-vertical vertex
                     // in the polygon chain
                     while (nextVtx.x == currVtx.x) {
@@ -310,7 +304,6 @@ export default class Polygon {
                     nextEdgeID = `${currVtx2.id}${nextVtx.id}`;
                 }
                 if (prevVtx.x == currVtx2.x) {
-                    console.log("Stepping prevVtx backward");
                     // If 'prevVtx' is in the vertical stretch, update it to be the previous non-vertical
                     // vertex in the polygon chain
                     while (prevVtx.x == currVtx.x) {
@@ -325,11 +318,21 @@ export default class Polygon {
             if (prevVtx.x > currVtx.x && nextVtx.x > currVtx.x) {
                 // If both neighboring edges lie ahead of the sweep line, they are both added to the edge
                 // tree
-                console.log("Inserting both edges");
-                edgeTree.insert(prevEdgeID, { from: prevVtx, to: currVtx }, currVtx.x, slope(prevVtx, currVtx));
-                edgeTree.insert(nextEdgeID, { from: currVtx2, to: nextVtx }, currVtx2.x, slope(currVtx2, nextVtx));
+                const vtxType = currVtx.clockwise == this.#clockwise ? "start" : "split";
+                edgeTree.processEvent({
+                    type: vtxType,
+                    vertex: currVtx.y < currVtx2.y ? currVtx : currVtx2,
+                    edgeID1: prevEdgeID,
+                    // edge1: { from: prevVtx, to: currVtx },
+                    edge1: new Edge(prevVtx, currVtx, prevVtx.clockwise !== this.#clockwise, currVtx.clockwise !== this.#clockwise),
+                    tiebreaker1: slope(prevVtx, currVtx),
+                    edgeID2: nextEdgeID,
+                    // edge2: { from: currVtx2, to: nextVtx },
+                    edge2: new Edge(currVtx2, nextVtx, currVtx2.clockwise !== this.#clockwise, nextVtx.clockwise !== this.#clockwise),
+                    tiebreaker2: slope(currVtx2, nextVtx),
+                });
                 edgeEvents.push({
-                    type: currVtx.clockwise == this.#clockwise ? "start" : "split",
+                    type: vtxType,
                     primary: currVtx.x,
                     cross: (currVtx.y + currVtx2.y) / 2,
                 });
@@ -337,77 +340,173 @@ export default class Polygon {
             else if (prevVtx.x > currVtx.x) {
                 // If only the previous edge lies ahead of the sweep line, the edge tree is updated to
                 // replace the next edge with the previous edge
-                console.log("Replacing next edge with prev edge");
-                edgeTree.replace(nextEdgeID, prevEdgeID, { from: prevVtx, to: currVtx }, slope(prevVtx, currVtx));
+                edgeTree.processEvent({
+                    type: "normal",
+                    vertex: currVtx.y < currVtx2.y ? currVtx : currVtx2,
+                    oldEdgeID: nextEdgeID,
+                    newEdgeID: prevEdgeID,
+                    // newEdge: { from: prevVtx, to: currVtx },
+                    newEdge: new Edge(prevVtx, currVtx, prevVtx.clockwise !== this.#clockwise, currVtx.clockwise !== this.#clockwise),
+                    newTiebreaker: slope(prevVtx, currVtx),
+                });
             }
             else if (nextVtx.x > currVtx.x) {
                 // If only the next edge lies ahead of the sweep line, the edge tree is updated to replace
                 // the previous edge with the next edge
-                console.log("Replacing prev edge with next edge");
-                edgeTree.replace(prevEdgeID, nextEdgeID, { from: currVtx2, to: nextVtx }, slope(currVtx2, nextVtx));
+                edgeTree.processEvent({
+                    type: "normal",
+                    vertex: currVtx.y < currVtx2.y ? currVtx : currVtx2,
+                    oldEdgeID: prevEdgeID,
+                    newEdgeID: nextEdgeID,
+                    // newEdge: { from: currVtx2, to: nextVtx },
+                    newEdge: new Edge(currVtx2, nextVtx, currVtx2.clockwise !== this.#clockwise, nextVtx.clockwise !== this.#clockwise),
+                    newTiebreaker: slope(currVtx2, nextVtx),
+                });
             }
             else {
                 // If both neighboring edges lie behind the sweep line, they are both removed from the edge
                 // tree
-                console.log("Deleting both edges");
-                edgeTree.delete(prevEdgeID);
-                edgeTree.delete(nextEdgeID);
+                const vtxType = currVtx.clockwise == this.#clockwise ? "end" : "merge";
+                edgeTree.processEvent({
+                    type: vtxType,
+                    vertex: currVtx.y < currVtx2.y ? currVtx : currVtx2,
+                    edgeID1: prevEdgeID,
+                    edgeID2: nextEdgeID,
+                });
                 edgeEvents.push({
-                    type: currVtx.clockwise == this.#clockwise ? "end" : "merge",
+                    type: vtxType,
                     primary: currVtx.x,
                     cross: (currVtx.y + currVtx2.y) / 2,
                 });
             }
             prevX = currVtx.x;
-            console.groupEnd();
         }
-        console.log("Plane sweep complete");
+        /*
         if (showPath) {
-            const testPath = pathify(edgeEvents, lineCoords);
-            let polyStr = `${this.#testPoint.x},${this.#testPoint.y} `;
-            for (const { x, y } of testPath) {
-                polyStr += `${x},${y} `;
-            }
-            polyStr.slice(0, -1);
-            /*
-            this.#virtualEdgeGroup.appendChild(
-              createSVGElement("circle", {
-                cx: `${testPath[0].x}`,
-                cy: `${testPath[0].y}`,
-                r: "5",
-                fill: "red",
-              })
-            );
-            */
-            this.#virtualEdgeGroup.appendChild(createSVGElement("polygon", {
-                points: polyStr,
-                fill: "none",
+          const testPath = pathify(edgeEvents, lineCoords);
+          let polyStr = `${this.#testPoint.x},${this.#testPoint.y} `;
+          for (const { x, y } of testPath) {
+            polyStr += `${x},${y} `;
+          }
+          polyStr.slice(0, -1);
+    
+          this.#virtualEdgeGroup.appendChild(
+            createSVGElement("polygon", {
+              points: polyStr,
+              fill: "none",
+              stroke: "red",
+              "stroke-width": "2",
+            })
+          );
+        } else {
+          const startColors = ["red", "orange", "yellow", "green", "blue", "purple", "pink"];
+          // Create all the SVG elements to represent the vertical lines generated by the plane sweep
+          for (const { primary, cross } of lineCoords) {
+            for (let i = 0; i < cross.length; i += 2) {
+              const svgStart = createSVGElement("polygon", {
+                points: `${primary - 4},${cross[i] - 8} ${primary + 4},${cross[i] - 8} ${primary},${
+                  cross[i]
+                }`,
+                fill: startColors[(i / 2) % startColors.length],
+              });
+              const svgLine = createSVGElement("line", {
+                x1: `${primary}`,
+                y1: `${cross[i]}`,
+                x2: `${primary}`,
+                y2: `${cross[i + 1]}`,
                 stroke: "red",
                 "stroke-width": "2",
+              });
+    
+              this.#virtualEdgeGroup.appendChild(svgStart);
+              this.#virtualEdgeGroup.appendChild(svgLine);
+            }
+          }
+        }
+        */
+        /*
+        for (const edge of edgeTree.diagonals) {
+          this.#virtualEdgeGroup.appendChild(
+            createSVGElement("line", {
+              x1: `${edge.from.x}`,
+              y1: `${edge.from.y}`,
+              x2: `${edge.to.x}`,
+              y2: `${edge.to.y}`,
+              stroke: "gray",
+              "stroke-width": "5",
+            })
+          );
+        }
+        */
+        const fullPath = pathifyRegions(edgeTree.regions, edgeTree.regionAdj);
+        let pathStr = `M ${fullPath.path[0].x} ${fullPath.path[0].y} `;
+        for (let i = 1; i < fullPath.path.length; i++) {
+            pathStr += `L ${fullPath.path[i].x} ${fullPath.path[i].y} `;
+        }
+        const pathSVG = createSVGElement("path", {
+            d: pathStr,
+            fill: "none",
+            stroke: "red",
+        });
+        const animatedCircle = createSVGElement("circle", { r: "5", fill: "blue" });
+        const animation = createSVGElement("animateMotion", {
+            dur: `${Math.round(fullPath.distance / 200)}s`,
+            repeatCount: "indefinite",
+            path: pathStr,
+            begin: "indefinite",
+        });
+        for (const region of edgeTree.regions) {
+            let polyStr = "";
+            region.generatePath();
+            for (const point of region.perimeter) {
+                polyStr += `${point.x},${point.y} `;
+            }
+            polyStr = polyStr.slice(0, -1);
+            this.#virtualEdgeGroup.appendChild(createSVGElement("polygon", {
+                points: polyStr,
+                fill: `rgb(${Math.floor(Math.random() * 200)}, ${55 + Math.floor(Math.random() * 200)}, ${55 + Math.floor(Math.random() * 200)})`,
+                "fill-opacity": "0.25",
             }));
         }
-        else {
-            const startColors = ["red", "orange", "yellow", "green", "blue", "purple", "pink"];
-            // Create all the SVG elements to represent the vertical lines generated by the plane sweep
-            for (const { primary, cross } of lineCoords) {
-                for (let i = 0; i < cross.length; i += 2) {
-                    const svgStart = createSVGElement("polygon", {
-                        points: `${primary - 4},${cross[i] - 8} ${primary + 4},${cross[i] - 8} ${primary},${cross[i]}`,
-                        r: "5",
-                        fill: startColors[(i / 2) % startColors.length],
-                    });
-                    const svgLine = createSVGElement("line", {
-                        x1: `${primary}`,
-                        y1: `${cross[i]}`,
-                        x2: `${primary}`,
-                        y2: `${cross[i + 1]}`,
-                        stroke: startColors[(i / 2) % startColors.length],
-                    });
-                    this.#virtualEdgeGroup.appendChild(svgStart);
-                    this.#virtualEdgeGroup.appendChild(svgLine);
-                }
-            }
+        animatedCircle.appendChild(animation);
+        this.#virtualEdgeGroup.appendChild(pathSVG);
+        this.#virtualEdgeGroup.appendChild(animatedCircle);
+        animation.beginElement();
+        /*
+        for (const region of edgeTree.regions) {
+          let polyStr = "";
+    
+          region.generatePath();
+    
+          for (const point of region.perimeter) {
+            polyStr += `${point.x},${point.y} `;
+          }
+          polyStr = polyStr.slice(0, -1);
+          this.#virtualEdgeGroup.appendChild(
+            createSVGElement("polygon", {
+              points: polyStr,
+              fill: `rgb(${Math.floor(Math.random() * 200)}, ${55 + Math.floor(Math.random() * 200)}, ${
+                55 + Math.floor(Math.random() * 200)
+              })`,
+              "fill-opacity": "0.5",
+            })
+          );
+    
+          polyStr = "";
+          for (const point of region.path) {
+            polyStr += `${point.x},${point.y} `;
+          }
+          polyStr = polyStr.slice(0, -1);
+          this.#virtualEdgeGroup.appendChild(
+            createSVGElement("polygon", {
+              points: polyStr,
+              fill: "none",
+              stroke: "red",
+              "stroke-width": "1",
+            })
+          );
         }
+        */
     }
     /**
      * Update the polygon's convex property
