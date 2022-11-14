@@ -1,5 +1,5 @@
-import Polygon from "./elements/polygon.js";
-import createSVGElement from "./helpers/createSVGElement.js";
+import { Polygon } from "./elements/index.js";
+import { createSVGElement } from "./helpers/index.js";
 // Tool constants
 const SELECT = 0;
 const CREATE = 1;
@@ -34,7 +34,7 @@ export default class App {
         const showHideBtn = document.getElementById("show-hide-btn");
         const resetBtn = document.getElementById("reset-btn");
         pathBtn.addEventListener("pointerdown", () => {
-            this.#polygon.planeSweep(true);
+            this.#polygon.planeSweep();
         });
         clearPathBtn.addEventListener("pointerdown", () => {
             this.#polygon.clearPath();

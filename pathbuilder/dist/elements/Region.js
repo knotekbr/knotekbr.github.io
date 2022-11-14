@@ -1,8 +1,4 @@
-import distance from "../helpers/distance.js";
-const BOTTOM = 0;
-const TOP = 1;
-const BOTH = 2;
-const START = 3;
+import { distance, slope } from "../helpers/index.js";
 export default class Region {
     #id;
     #size;
@@ -13,9 +9,10 @@ export default class Region {
     #waypoints;
     #waypointQueue;
     #namedWaypoints;
-    #waypointAjd;
-    #prevBot;
-    #prevTop;
+    #waypointAdj;
+    #openWaypoints;
+    #lastQueuedTop;
+    #lastQueuedBot;
     constructor(id, bottomEdge, topEdge, borders) {
         this.#id = id;
         this.#size = 0;
@@ -23,40 +20,48 @@ export default class Region {
         this.#pathDistance = 0;
         this.#waypoints = [];
         this.#namedWaypoints = new Map();
-        this.#waypointAjd = [];
+        this.#waypointAdj = [];
         this.#waypointQueue = [];
+        this.#openWaypoints = [];
         if (bottomEdge && topEdge) {
             this.#bottomEdges = [bottomEdge];
             this.#topEdges = [topEdge];
             this.#size = 2;
             this.#waypoints.push(bottomEdge.from);
-            this.#waypointAjd.push([]);
+            this.#openWaypoints.push({
+                idx: 0,
+                minSlope: slope(bottomEdge.from, bottomEdge.to),
+                maxSlope: slope(bottomEdge.from, topEdge.to),
+            });
+            this.#waypointAdj.push([]);
             this.#namedWaypoints.set("start", 0);
-            this.#prevBot = { waypoint: true, idx: 0 };
-            this.#prevTop = { waypoint: true, idx: 0 };
             if (borders) {
                 this.#namedWaypoints.set(`r_${borders.id}_0`, 0);
-                if (borders.side) {
-                    this.#waypointQueue.push({
+                if (borders.side === 1 /* EdgeSide.TOP */) {
+                    this.#lastQueuedTop = {
                         side: borders.side,
                         waypoint: topEdge.to,
                         name: `r_${borders.id}_1`,
-                    });
+                        slope: Number.MAX_SAFE_INTEGER,
+                        needsSlope: true,
+                    };
+                    this.#waypointQueue.push(this.#lastQueuedTop);
                 }
                 else {
-                    this.#waypointQueue.push({
+                    this.#lastQueuedBot = {
                         side: borders.side,
                         waypoint: bottomEdge.to,
                         name: `r_${borders.id}_1`,
-                    });
+                        slope: Number.MIN_SAFE_INTEGER,
+                        needsSlope: true,
+                    };
+                    this.#waypointQueue.push(this.#lastQueuedBot);
                 }
             }
         }
         else {
             this.#bottomEdges = [];
             this.#topEdges = [];
-            this.#prevBot = { waypoint: false, idx: 0 };
-            this.#prevTop = { waypoint: false, idx: 0 };
         }
     }
     get id() {
@@ -77,7 +82,7 @@ export default class Region {
     }
     get waypointAdj() {
         const result = [];
-        for (const list of this.#waypointAjd) {
+        for (const list of this.#waypointAdj) {
             result.push([...list]);
         }
         return result;
@@ -96,26 +101,55 @@ export default class Region {
                 fromName = `r_${borders}_0`;
                 toName = `r_${borders}_1`;
             }
-            if (side) {
+            if (side === 1 /* EdgeSide.TOP */) {
                 this.#topEdges.push(edge);
+                if (this.#lastQueuedTop?.needsSlope === true) {
+                    this.#lastQueuedTop.slope = slope(edge.from, edge.to);
+                    this.#lastQueuedTop.needsSlope = false;
+                }
             }
             else {
                 this.#bottomEdges.push(edge);
+                if (this.#lastQueuedBot?.needsSlope === true) {
+                    this.#lastQueuedBot.slope = slope(edge.from, edge.to);
+                    this.#lastQueuedBot.needsSlope = false;
+                }
             }
             if (edge.fromReflex || borders !== undefined) {
-                this.#addWaypoint(edge.from, side, fromName);
+                this.#addWaypoint(edge.from, side, slope(edge.from, edge.to), fromName);
             }
             if (edge.toReflex || borders !== undefined) {
+                let newQueuedPoint;
                 if (this.#waypointQueue.length == 0 ||
                     this.#waypointQueue.at(-1).waypoint.x <= edge.to.x) {
-                    this.#waypointQueue.push({ waypoint: edge.to, name: toName, side });
+                    newQueuedPoint = {
+                        waypoint: edge.to,
+                        name: toName,
+                        side,
+                        slope: side === 1 /* EdgeSide.TOP */ ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER,
+                        needsSlope: true,
+                    };
+                    this.#waypointQueue.push(newQueuedPoint);
                 }
                 else {
                     let i = 0;
+                    newQueuedPoint = {
+                        waypoint: edge.to,
+                        name: toName,
+                        side,
+                        slope: side === 1 /* EdgeSide.TOP */ ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER,
+                        needsSlope: true,
+                    };
                     while (this.#waypointQueue[i].waypoint.x <= edge.to.x) {
                         i++;
                     }
-                    this.#waypointQueue.splice(i, 0, { waypoint: edge.to, name: toName, side });
+                    this.#waypointQueue.splice(i, 0, newQueuedPoint);
+                }
+                if (side === 1 /* EdgeSide.TOP */) {
+                    this.#lastQueuedTop = newQueuedPoint;
+                }
+                else {
+                    this.#lastQueuedBot = newQueuedPoint;
                 }
             }
             this.#size++;
@@ -141,33 +175,57 @@ export default class Region {
         }
         return idx;
     }
-    #addWaypoint(waypoint, side, name) {
+    #addWaypoint(waypoint, side, initSlope, name) {
         while (this.#waypointQueue.length > 0 && this.#waypointQueue[0].waypoint.x <= waypoint.x) {
             const existing = this.#waypointQueue[0];
-            this.#addWaypointHelper(existing.waypoint, existing.side, existing.name);
+            this.#addWaypointHelper(existing.waypoint, existing.side, existing.slope, existing.name);
             this.#waypointQueue.shift();
         }
-        this.#addWaypointHelper(waypoint, side, name);
+        this.#addWaypointHelper(waypoint, side, initSlope, name);
     }
-    #addWaypointHelper(waypoint, side, name) {
+    #addWaypointHelper(waypoint, side, initSlope, name) {
+        if (waypoint.x === this.#waypoints.at(-1)?.x && waypoint.y === this.#waypoints.at(-1)?.y) {
+            if (name && !this.#namedWaypoints.has(name)) {
+                this.#namedWaypoints.set(name, this.#waypoints.length - 1);
+            }
+            return;
+        }
         if (name) {
             this.#namedWaypoints.set(name, this.#waypoints.length);
         }
-        this.#waypointAjd.push([this.#waypoints.length - 1]);
-        this.#waypointAjd[this.#waypoints.length - 1].push(this.#waypoints.length);
-        if (side) {
-            if (this.#prevTop.waypoint && this.#prevTop.idx !== this.#waypoints.length - 1) {
-                this.#waypointAjd[this.#prevTop.idx].push(this.#waypoints.length);
-                this.#waypointAjd[this.#waypoints.length].push(this.#prevTop.idx);
+        this.#waypointAdj.push([]);
+        for (let i = 0; i < this.#openWaypoints.length;) {
+            const open = this.#openWaypoints[i];
+            const newSlope = slope(this.#waypoints[open.idx], waypoint);
+            if (newSlope >= open.minSlope && newSlope <= open.maxSlope) {
+                this.#waypointAdj[open.idx].push(this.#waypoints.length);
+                this.#waypointAdj[this.#waypoints.length].push(open.idx);
+                if (side === 1 /* EdgeSide.TOP */) {
+                    open.maxSlope = newSlope;
+                }
+                else {
+                    open.minSlope = newSlope;
+                }
+                if (open.minSlope >= open.maxSlope) {
+                    this.#openWaypoints.splice(i, 1);
+                    continue;
+                }
             }
-            this.#prevTop = { waypoint: true, idx: this.#waypoints.length };
+            i++;
+        }
+        if (side === 1 /* EdgeSide.TOP */) {
+            this.#openWaypoints.push({
+                idx: this.#waypoints.length,
+                minSlope: Number.MIN_SAFE_INTEGER,
+                maxSlope: initSlope,
+            });
         }
         else {
-            if (this.#prevBot.waypoint && this.#prevBot.idx !== this.#waypoints.length - 1) {
-                this.#waypointAjd[this.#prevBot.idx].push(this.#waypoints.length);
-                this.#waypointAjd[this.#waypoints.length].push(this.#prevBot.idx);
-            }
-            this.#prevBot = { waypoint: true, idx: this.#waypoints.length };
+            this.#openWaypoints.push({
+                idx: this.#waypoints.length,
+                minSlope: initSlope,
+                maxSlope: Number.MAX_SAFE_INTEGER,
+            });
         }
         this.#waypoints.push(waypoint);
     }
@@ -187,31 +245,33 @@ export default class Region {
         this.#path = [];
         this.#pathDistance = 0;
         if (!this.#namedWaypoints.has("end")) {
-            this.#addWaypoint(end, false, "end");
+            this.#addWaypoint(end, 0 /* EdgeSide.BOTTOM */, 0, "end");
         }
         while (currX < end.x) {
             if (currBot.to.x < currTop.to.x) {
                 nextX = currBot.to.x;
-                nextType = BOTTOM;
+                nextType = 0 /* EdgeSide.BOTTOM */;
             }
             else if (currBot.to.x > currTop.to.x) {
                 nextX = currTop.to.x;
-                nextType = TOP;
+                nextType = 1 /* EdgeSide.TOP */;
             }
             else {
                 nextX = currTop.to.x;
-                nextType = BOTH;
+                nextType = 2 /* EdgeSide.BOTH */;
             }
             while (currX < nextX) {
                 insert(currX, currBot, currTop);
                 currX += stepSize;
             }
-            currX = currX > nextX ? nextX : currX;
-            if (nextType === BOTTOM || nextType === BOTH) {
+            if (currX > nextX) {
+                insert(nextX, currBot, currTop, nextType);
+            }
+            if (nextType === 0 /* EdgeSide.BOTTOM */ || nextType === 2 /* EdgeSide.BOTH */) {
                 botIdx++;
                 currBot = this.#bottomEdges[botIdx];
             }
-            if (nextType === TOP || nextType === BOTH) {
+            if (nextType === 1 /* EdgeSide.TOP */ || nextType === 2 /* EdgeSide.BOTH */) {
                 topIdx++;
                 currTop = this.#topEdges[topIdx];
             }
@@ -222,10 +282,9 @@ export default class Region {
         const context = this;
         const intersects = (at, { from, to }) => from.y + (to.y - from.y) * ((at - from.x) / (to.x - from.x));
         let flip = false;
-        function flipInsert(currX, bottomEdge, topEdge) {
+        function flipInsert(currX, bottomEdge, topEdge, passedType) {
             let bottomY = intersects(currX, bottomEdge);
             let topY = intersects(currX, topEdge);
-            context.#pathDistance += topY - bottomY;
             if (bottomY == topY) {
                 context.#path.push({ x: currX, y: bottomY });
                 return;
@@ -233,11 +292,20 @@ export default class Region {
             if (flip) {
                 [bottomY, topY] = [topY, bottomY];
             }
-            if (context.#path.length > 0) {
-                context.#pathDistance += distance(context.#path.at(-1), { x: currX, y: bottomY });
+            if (passedType !== undefined) {
+                if (context.#path.length > 0) {
+                    context.#pathDistance += distance(context.#path.at(-1), { x: currX, y: bottomY });
+                }
+                context.#path.push({ x: currX, y: bottomY });
             }
-            context.#path.push({ x: currX, y: bottomY }, { x: currX, y: topY });
-            flip = !flip;
+            else {
+                if (context.#path.length > 0) {
+                    context.#pathDistance += distance(context.#path.at(-1), { x: currX, y: bottomY });
+                }
+                context.#pathDistance += Math.abs(topY - bottomY);
+                context.#path.push({ x: currX, y: bottomY }, { x: currX, y: topY });
+                flip = !flip;
+            }
         }
         return flipInsert;
     }

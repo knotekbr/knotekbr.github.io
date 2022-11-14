@@ -1,83 +1,29 @@
-import Edge from "../elements/Edge.js";
-import Region from "../elements/Region.js";
-const RED = true;
-const BLACK = false;
-const TOP = true;
-const BOTTOM = false;
-function isRed(node) {
-    if (!node) {
-        return false;
-    }
-    return node.color;
-}
-function isTop(node) {
-    return node.side;
-}
-function isBottom(node) {
-    return !node.side;
-}
+import { RED, BLACK } from "../constants.js";
+import { Edge, Region } from "../elements/index.js";
+import EdgeNode, { isRed, isBottom, isTop } from "./EdgeNode.js";
 /**
- * Class representing a node in the edge tree
+ * Class representing a self-balancing binary search tree that responds to plane sweep events and
+ * decomposes a polygon into monotone regions
  */
-class EdgeNode {
-    // Base node contents
-    id;
-    value;
-    tiebreaker;
-    // Required information for red black tree implementation
-    color;
-    parent;
-    left;
-    right;
-    // Extra information for creating diagonals
-    helper;
-    helperType;
-    originalHelper;
-    // Extra information for monotone decomposition
-    region;
-    side;
-    /**
-     * Creates a new edge node
-     *
-     * @param {string} id - An id that uniquely identifies this node
-     * @param {V} value - The value to store in this node
-     * @param {number} tiebreaker - A value to use to resolve ties between dynamic keys
-     * @param {EdgeNode} [parent=null] - The parent of the new node
-     */
-    constructor(id, value, tiebreaker, helper, helperType, region, parent = null) {
-        // Set to argument values
-        this.id = id;
-        this.value = value;
-        this.tiebreaker = tiebreaker;
-        this.parent = parent;
-        this.helper = helper;
-        this.helperType = helperType;
-        this.region = region;
-        // Set to default values
-        this.color = RED;
-        this.left = null;
-        this.right = null;
-        this.originalHelper = true;
-        this.side = BOTTOM;
-    }
-}
-/**
- * Class representing a self-balancing binary search tree designed to hold polygon edges
- */
-export default class EdgeRBT {
-    /** The tree's root node */
+export default class DecomposerTree {
+    /** The tree's root node. Null if the tree is empty */
     #root;
     /** Function used to extract dynamic keys from values contained in nodes */
     #keyExtractor;
+    /** True if the polygon being processed is clockwise, false otherwise */
     #clockwise;
     /** A map that associates string IDs with tree nodes */
     #map;
+    /** A dummy region to be used as a placeholder when an edge's region is unknown */
     #tempRegion;
+    /** An array of diagonals created during the monotone decomposition process */
     #diagonals;
+    /** An array of regions created during the monotone decomposition process */
     #regions;
+    /** An array of arrays that store regional adjacencies */
     #regionAdj;
     /**
-     * Creates a new edge tree
+     * Creates a new DecomposerTree
      *
      * @param {KeyExtractor} keyExtractor - A function that determines a node's key based on its
      * value and an intersection coordinate of a reference line
@@ -92,12 +38,15 @@ export default class EdgeRBT {
         this.#regions = [];
         this.#regionAdj = [];
     }
+    /** Diagonal edges created during the decomposition process */
     get diagonals() {
         return this.#diagonals;
     }
+    /** Regions created during the decomposition process */
     get regions() {
         return this.#regions;
     }
+    /** Adjacencies between regions created during the decomposition process */
     get regionAdj() {
         return this.#regionAdj;
     }
@@ -107,7 +56,7 @@ export default class EdgeRBT {
      *
      ************************************************************************************************/
     /**
-     * Processes the given SweepEdgeEvent and updates the edge tree as needed
+     * Processes the given SweepEdgeEvent and updates the tree accordingly
      *
      * @param {SweepEdgeEvent} event - The event to process
      */
@@ -124,12 +73,17 @@ export default class EdgeRBT {
             if (this.#map.has(event.newEdgeID)) {
                 throw new Error(`Event Error (Normal): ID ${event.newEdgeID} already exists`);
             }
+            // Get the node for the ending edge (guaranteed to exist)
             const endingEdge = this.#map.get(event.oldEdgeID);
+            // Get the nodes for the edges above and below the ending edge (one may not exist)
             const edgeBelow = this.#previous(endingEdge);
             const edgeAbove = this.#next(endingEdge);
-            this.#handleEdgeEnd(endingEdge, edgeBelow, edgeAbove, event.vertex, "normal");
-            this.#updateHelpers(endingEdge, edgeBelow, event.vertex, event.type);
+            // Helper methods required to process 'normal' events
+            this.#handleEdgeEnd(endingEdge, edgeBelow, edgeAbove, event.vertex);
+            this.#updateHelper(endingEdge, edgeBelow, event.vertex, event.type);
+            // Update the node of the ending edge to contain the new edge
             this.#replace(endingEdge, event.newEdgeID, event.newEdge, event.newTiebreaker, event.vertex, event.type);
+            // Ensure that the new edge is included in the correct region
             endingEdge.region.addEdges({ edge: event.newEdge, side: endingEdge.side });
         }
         // Process 'start' events (2x edge insertion)
@@ -141,11 +95,14 @@ export default class EdgeRBT {
             if (this.#map.has(event.edgeID2)) {
                 throw new Error(`Event Error (Start): ID ${event.edgeID2} already exists`);
             }
+            // Create two new edge nodes and a new region between them
             const [lowEdge, highEdge] = this.#createNodes(event);
             const newRegion = new Region(this.#regions.length, lowEdge.value, highEdge.value);
+            // Update everything to reflect the new region
             this.#regions.push(newRegion);
             this.#regionAdj.push([]);
             lowEdge.region = highEdge.region = newRegion;
+            // Add both new edge nodes to the tree
             this.#insert(lowEdge);
             this.#insert(highEdge);
         }
@@ -158,13 +115,17 @@ export default class EdgeRBT {
             if (this.#map.has(event.edgeID2)) {
                 throw new Error(`Event Error (Split): ID ${event.edgeID2} already exists`);
             }
+            // Create two new edge nodes and insert them into the tree
             const [lowEdge, highEdge] = this.#createNodes(event);
             this.#insert(lowEdge);
             this.#insert(highEdge);
+            // Get the nodes for the edges below and above the new edges (guaranteed to exist by the
+            // nature of 'split' events)
             const edgeBelow = this.#previous(lowEdge);
             const edgeAbove = this.#next(highEdge);
+            // Helper methods required to process 'split' events
             this.#handleSplit(lowEdge, highEdge, edgeBelow, edgeAbove, event.vertex);
-            this.#updateHelpers(lowEdge, edgeBelow, event.vertex, event.type, true);
+            this.#updateHelper(lowEdge, edgeBelow, event.vertex, event.type, true);
         }
         // Process 'end' events (2x edge deletion)
         else if (event.type === "end") {
@@ -174,8 +135,11 @@ export default class EdgeRBT {
             if (!this.#map.has(event.edgeID2)) {
                 throw new Error(`Event Error (End): ID ${event.edgeID2} does not exist`);
             }
+            // Get the nodes for the ending edges (guaranteed to exist)
             const [lowEdge, highEdge] = this.#fetchNodes(event.edgeID1, event.edgeID2, "end");
-            this.#handleEdgeEnd(lowEdge, null, highEdge, event.vertex, "end");
+            // Helper method required to process 'end' events
+            this.#handleEdgeEnd(lowEdge, null, highEdge, event.vertex);
+            // Remove both nodes from the tree
             this.#delete(lowEdge);
             this.#delete(highEdge);
         }
@@ -187,11 +151,16 @@ export default class EdgeRBT {
             if (!this.#map.has(event.edgeID2)) {
                 throw new Error(`Event Error (End): ID ${event.edgeID2} does not exist`);
             }
+            // Get the nodes for the ending edges (guaranteed to exist)
             const [lowEdge, highEdge] = this.#fetchNodes(event.edgeID1, event.edgeID2, "merge");
+            // Get the nodes for the edges below and above the ending edges (guaranteed to exist by the
+            // nature of 'merge' events)
             const edgeBelow = this.#previous(lowEdge);
             const edgeAbove = this.#next(highEdge);
-            this.#handleEdgeEnd(highEdge, edgeBelow, edgeAbove, event.vertex, "merge");
-            this.#updateHelpers(lowEdge, edgeBelow, event.vertex, event.type);
+            // Helper methods required to process 'merge' events
+            this.#handleEdgeEnd(highEdge, edgeBelow, edgeAbove, event.vertex);
+            this.#updateHelper(lowEdge, edgeBelow, event.vertex, event.type);
+            // Remove both nodes from the tree
             this.#delete(lowEdge);
             this.#delete(highEdge);
         }
@@ -201,101 +170,208 @@ export default class EdgeRBT {
      * Event processing utility methods
      *
      ************************************************************************************************/
-    #handleEdgeEnd(endingEdge, edgeBelow, edgeAbove, newHelper, newHelperType) {
+    /**
+     * Event processing helper method to be called when an edge ends
+     *
+     * @param {EdgeNode} endingEdge - The node corresponding to the edge that's ending. Can be
+     * mutated by this method (endingEdge.region)
+     * @param {NodeOrNull} edgeBelow - The node corresponding to the edge below the ending edge. May
+     * be null
+     * @param {NodeOrNull} edgeAbove - The node corresponding to the edge above the ending edge. May
+     * be null
+     * @param {Vertex} newHelper - The helper vertex associated with the event being processed
+     *
+     * @private
+     * @internal
+     */
+    #handleEdgeEnd(endingEdge, edgeBelow, edgeAbove, newHelper) {
+        // We only need to do work if the ending edge's helper is a 'merge' vertex
         if (endingEdge.helperType === "merge") {
+            // A new diagonal is required between the old 'merge' helper to the new helper
             const diagonal = new Edge(endingEdge.helper, newHelper, endingEdge.helper.clockwise !== this.#clockwise, newHelper.clockwise !== this.#clockwise);
             this.#diagonals.push(diagonal);
-            if (newHelperType === "end") {
-                endingEdge.region.addEdges({ edge: diagonal, side: TOP, borders: edgeAbove.region.id });
-                edgeAbove.region.addEdges({ edge: diagonal, side: BOTTOM, borders: endingEdge.region.id });
-                this.#regionAdj[endingEdge.region.id].push(edgeAbove.region.id);
-                this.#regionAdj[edgeAbove.region.id].push(endingEdge.region.id);
-                return;
-            }
+            // If the ending edge is a bottom edge, we need to specify an adjacency between its region and
+            // the region above it
             if (isBottom(endingEdge)) {
-                endingEdge.region.addEdges({ edge: diagonal, side: TOP, borders: edgeAbove.region.id });
-                edgeAbove.region.addEdges({ edge: diagonal, side: BOTTOM, borders: endingEdge.region.id });
+                // Add the new diagonal to the correct chain of both involved regions, using the 'borders'
+                // property to indicate the region adjacency
+                endingEdge.region.addEdges({
+                    edge: diagonal,
+                    side: 1 /* EdgeSide.TOP */,
+                    borders: edgeAbove.region.id,
+                });
+                edgeAbove.region.addEdges({
+                    edge: diagonal,
+                    side: 0 /* EdgeSide.BOTTOM */,
+                    borders: endingEdge.region.id,
+                });
+                // Update the adjacency lists for both involved regions
                 this.#regionAdj[endingEdge.region.id].push(edgeAbove.region.id);
                 this.#regionAdj[edgeAbove.region.id].push(endingEdge.region.id);
+                // Ensure that if the ending edge is replaced, the new edge will belong to the upper region
                 endingEdge.region = edgeAbove.region;
             }
+            // Else the ending edge is a top edge, we need to specify an adjacency between its region and
+            // the region below it
             else {
-                endingEdge.region.addEdges({ edge: diagonal, side: BOTTOM, borders: edgeBelow.region.id });
-                edgeBelow.region.addEdges({ edge: diagonal, side: TOP, borders: endingEdge.region.id });
+                // Add the new diagonal to the correct chain of both involved regions, using the 'borders'
+                // property to indicate the region adjacency
+                endingEdge.region.addEdges({
+                    edge: diagonal,
+                    side: 0 /* EdgeSide.BOTTOM */,
+                    borders: edgeBelow.region.id,
+                });
+                edgeBelow.region.addEdges({
+                    edge: diagonal,
+                    side: 1 /* EdgeSide.TOP */,
+                    borders: endingEdge.region.id,
+                });
+                // Update the adjacency lists for both involved regions
                 this.#regionAdj[endingEdge.region.id].push(edgeBelow.region.id);
                 this.#regionAdj[edgeBelow.region.id].push(endingEdge.region.id);
+                // Ensure that if the ending edge is replaced, the new edge will belong to the lower region
                 endingEdge.region = edgeBelow.region;
             }
         }
     }
+    /**
+     * Event processing helper method to be called specifically in response to 'split' events
+     *
+     * @param {EdgeNode} lowEdge - The node corresponding to the lower of the two edges involved in
+     * the 'split' event. Can be mutated by this method (lowEdge.region)
+     * @param {EdgeNode} highEdge - The node corresponding to the higher of the two edges involved in
+     * the 'split' event. Can be mutated by this method (highEdge.region)
+     * @param {EdgeNode} edgeBelow - The node corresponding to the edge directly below the 'split'
+     * event. Can be mutated by this method (edgeBelow.region)
+     * @param {EdgeNode} edgeAbove - The node corresponding to the edge directly above the 'split'
+     * event. Can be mutated by this method (edgeAbove.region)
+     * @param {Vertex} newHelper - The helper vertex associated with the 'split' event
+     *
+     * @private
+     * @internal
+     */
     #handleSplit(lowEdge, highEdge, edgeBelow, edgeAbove, newHelper) {
+        // A new diagonal is required any time a 'split' event occurs
         const diagonal = new Edge(edgeBelow.helper, newHelper, edgeBelow.helper.clockwise !== this.#clockwise, newHelper.clockwise !== this.#clockwise);
         this.#diagonals.push(diagonal);
+        // If the 'split' event is dividing a single existing region
         if (edgeBelow.region == edgeAbove.region) {
+            // If the edge below the 'split' still has its original helper, which is its leftmost vertex
             if (edgeBelow.originalHelper) {
+                // Create a new region whose initial bottom edge is the edge below, and whose initial top
+                // edge is the new diagonal
                 const newRegion = new Region(this.#regions.length, edgeBelow.value, diagonal, {
-                    side: TOP,
+                    side: 1 /* EdgeSide.TOP */,
                     id: edgeBelow.region.id,
                 });
+                // Update the regions array and region adjacency lists
+                this.#regions.push(newRegion);
                 this.#regionAdj.push([]);
                 this.#regionAdj[newRegion.id].push(edgeBelow.region.id);
                 this.#regionAdj[edgeBelow.region.id].push(newRegion.id);
-                this.#regions.push(newRegion);
+                // The edge below no longer belongs to the region it was assigned to. Remove it and add the
+                // new diagonal in its place, using the 'borders' property to indicate region adjacency
                 edgeBelow.region.popEdge(edgeBelow.value);
                 edgeBelow.region.addEdges({ edge: diagonal, side: edgeBelow.side, borders: newRegion.id });
+                // Update involved edges to be assigned to the correct regions
+                edgeBelow.region = newRegion;
                 lowEdge.region = newRegion;
                 highEdge.region = edgeAbove.region;
-                edgeBelow.region = newRegion;
+                // Update involved regions to contain the correct edges
                 newRegion.addEdges({ edge: lowEdge.value, side: lowEdge.side });
                 edgeAbove.region.addEdges({ edge: highEdge.value, side: highEdge.side });
             }
+            // Else the edge below has a non-original helper, which is some vertex above the split
             else {
+                // Create a new region whose initial bottom edge is the new diagonal, and whose initial top
+                // edge is the edge above
                 const newRegion = new Region(this.#regions.length, diagonal, edgeAbove.value, {
-                    side: BOTTOM,
+                    side: 0 /* EdgeSide.BOTTOM */,
                     id: edgeBelow.region.id,
                 });
+                // Update the regions array and region adjacency lists
+                this.#regions.push(newRegion);
                 this.#regionAdj.push([]);
                 this.#regionAdj[newRegion.id].push(edgeBelow.region.id);
                 this.#regionAdj[edgeBelow.region.id].push(newRegion.id);
-                this.#regions.push(newRegion);
+                // The edge above no longer belongs to the region it was assigned to. Remove it and add the
+                // new diagonal in its place, using the 'borders' property to indicate region adjacency
                 edgeAbove.region.popEdge(edgeAbove.value);
                 edgeAbove.region.addEdges({ edge: diagonal, side: edgeAbove.side, borders: newRegion.id });
+                // Update involved edges to be assigned to the correct regions
                 lowEdge.region = edgeBelow.region;
                 highEdge.region = newRegion;
                 edgeAbove.region = newRegion;
+                // Update involved regions to contain the correct edges
                 newRegion.addEdges({ edge: highEdge.value, side: highEdge.side });
                 edgeBelow.region.addEdges({ edge: lowEdge.value, side: lowEdge.side });
             }
         }
+        // Else the split is between two existing regions
         else {
+            // No need to create a new region; update involved edges to be assigned to the correct regions
             lowEdge.region = edgeBelow.region;
             highEdge.region = edgeAbove.region;
+            // Update involved regions to contain the correct edges, using the 'borders' property to
+            // indicated region adjacency on the diagonal
             edgeBelow.region.addEdges({ edge: diagonal, side: lowEdge.side, borders: edgeAbove.region.id }, { edge: lowEdge.value, side: lowEdge.side });
             edgeAbove.region.addEdges({ edge: diagonal, side: highEdge.side, borders: edgeBelow.region.id }, { edge: highEdge.value, side: highEdge.side });
+            // Update region adjacency lists
             this.#regionAdj[edgeBelow.region.id].push(edgeAbove.region.id);
             this.#regionAdj[edgeAbove.region.id].push(edgeBelow.region.id);
         }
     }
-    #updateHelpers(helperEdge, edgeBelow, newHelper, newHelperType, afterSplit = false) {
+    /**
+     * Event processing helper method to be called when an edge's helper vertex needs to be updated
+     *
+     * @param {EdgeNode} helperEdge - The node corresponding to the edge that is attached to the new
+     * helper vertex, or the lower edge if more than one is attached
+     * @param {NodeOrNull} edgeBelow - The node corresponding to the edge directly below 'helperEdge'.
+     * May be null. If not null, will be mutated by this method (edgeBelow.helper,
+     * edgeBelow.helperType, edgeBelow.originalHelper)
+     * @param {Vertex} newHelper - The helper vertex associated with the event being processed
+     * @param {VertexType} newHelperType - The type of the helper vertex associated with the event
+     * being processed
+     * @param {boolean} [afterSplit = false] - (Optional, defaults to false) If true, this method will
+     * not check if a new diagonal needs to be created
+     *
+     * @private
+     * @internal
+     */
+    #updateHelper(helperEdge, edgeBelow, newHelper, newHelperType, afterSplit = false) {
+        // We only update the helper of the edge immediately below the new helper, and only if that edge
+        // is a bottom edge
         if (edgeBelow && isBottom(edgeBelow)) {
+            // We need to add a new diagonal if the edge below currently has a 'merge' helper. If a
+            // 'split' event was just processed, this diagonal already exists
             if (!afterSplit && edgeBelow.helperType === "merge") {
                 const diagonal = new Edge(edgeBelow.helper, newHelper, edgeBelow.helper.clockwise !== this.#clockwise, newHelper.clockwise !== this.#clockwise);
                 this.#diagonals.push(diagonal);
-                helperEdge.region.addEdges({ edge: diagonal, side: BOTTOM, borders: edgeBelow.region.id });
-                edgeBelow.region.addEdges({ edge: diagonal, side: TOP, borders: helperEdge.region.id });
+                // Add the new diagonal to the correct chain of both involved regions, using the 'borders'
+                // property to indicate the region adjacency
+                helperEdge.region.addEdges({
+                    edge: diagonal,
+                    side: 0 /* EdgeSide.BOTTOM */,
+                    borders: edgeBelow.region.id,
+                });
+                edgeBelow.region.addEdges({
+                    edge: diagonal,
+                    side: 1 /* EdgeSide.TOP */,
+                    borders: helperEdge.region.id,
+                });
+                // Update region adjacency lists
                 this.#regionAdj[helperEdge.region.id].push(edgeBelow.region.id);
                 this.#regionAdj[edgeBelow.region.id].push(helperEdge.region.id);
+                // Update the helper edge to be assigned to the correct region
                 helperEdge.region = edgeBelow.region;
             }
+            // Update helper information of the edge below, regardless of whether a diagonal was added
             edgeBelow.helper = newHelper;
             edgeBelow.helperType = newHelperType;
             edgeBelow.originalHelper = false;
         }
     }
     /**
-     * @private
-     * @internal
-     *
      * For use with 'start' and 'split' events.
      *
      * Creates and returns an array of two edge nodes representing the new edges in the given
@@ -307,6 +383,9 @@ export default class EdgeRBT {
      * @param {StartSplitEvent} event - The edge event being processed
      * @param {Region} [region] - (Optional) The region for the new edges, if it's already known
      * @returns An array of two edge nodes with the lower node first and the higher node second
+     *
+     * @private
+     * @internal
      */
     #createNodes(event, region = this.#tempRegion) {
         let lowNode = new EdgeNode(event.edgeID1, event.edge1, event.tiebreaker1, event.vertex, event.type, region);
@@ -317,17 +396,14 @@ export default class EdgeRBT {
         }
         // Assign node sides based on event type
         if (event.type === "start") {
-            highNode.side = TOP;
+            highNode.side = 1 /* EdgeSide.TOP */;
         }
         else {
-            lowNode.side = TOP;
+            lowNode.side = 1 /* EdgeSide.TOP */;
         }
         return [lowNode, highNode];
     }
     /**
-     * @private
-     * @internal
-     *
      * For use with 'end' and 'merge' events.
      *
      * Returns an array of two edge nodes in the tree that represent the edges with the given IDs. The
@@ -340,12 +416,15 @@ export default class EdgeRBT {
      * @param {string} secondID - The ID of the second edge
      * @param {VertexType} type - The type of the edge event that is requesting the nodes
      * @returns An array of two edge nodes with the lower node first and the higher node second
+     *
+     * @private
+     * @internal
      */
     #fetchNodes(firstID, secondID, type) {
         let lowNode = this.#map.get(firstID);
         let highNode = this.#map.get(secondID);
         // Swap nodes if necessary so that they're ordered from bottom to top
-        if ((type === "merge" && lowNode.side === BOTTOM) || (type === "end" && lowNode.side === TOP)) {
+        if ((type === "merge" && isBottom(lowNode)) || (type === "end" && isTop(lowNode))) {
             [lowNode, highNode] = [highNode, lowNode];
         }
         return [lowNode, highNode];

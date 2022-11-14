@@ -1,5 +1,4 @@
-import MappedMinHeap from "./MappedMinHeap.js";
-import distance from "./distance.js";
+import { distance, MappedMinHeap } from "./index.js";
 export default function shortestPath(region, startName, endNames) {
     const start = region.getWaypointIdx(startName);
     const ends = endNames.map((value) => region.getWaypointIdx(value));

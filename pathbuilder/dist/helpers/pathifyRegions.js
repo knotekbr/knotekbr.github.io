@@ -9,7 +9,7 @@ export default function pathifyRegions(regions, regionAdj) {
         regions[id].generatePath();
         visited[id] = true;
         instructions.push({ type: "cover", id });
-        for (let i = 0; i < regionAdj[id].length; i++) {
+        for (let i = regionAdj[id].length - 1; i >= 0; i--) {
             if (visited[regionAdj[id][i]]) {
                 continue;
             }
@@ -21,7 +21,6 @@ export default function pathifyRegions(regions, regionAdj) {
         }
     };
     addInstructions(0);
-    console.info(instructions);
     for (const instruction of instructions) {
         let currPath;
         if (instruction.type === "cover") {

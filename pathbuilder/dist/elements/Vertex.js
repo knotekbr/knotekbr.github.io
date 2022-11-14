@@ -1,5 +1,4 @@
-import clockwise from "../helpers/clockwise.js";
-import createSVGElement from "../helpers/createSVGElement.js";
+import { clockwise, createSVGElement } from "../helpers/index.js";
 /**
  * Class representing a polygon vertex
  */
