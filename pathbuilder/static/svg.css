@@ -1,5 +1,9 @@
-svg {
-  cursor: crosshair;
+svg.adding {
+  cursor: url("img/add-vtx.svg") 0 0, auto;
+}
+
+svg.deleting {
+  cursor: url("img/rmv-vtx-inactive.svg") 0 0, auto;
 }
 
 #test-point {
@@ -10,10 +14,15 @@ svg {
   fill: rgba(0, 255, 0, 1);
 }
 
-.movable {
+svg:not(.deleting) .movable {
   cursor: move;
 }
 
+svg.deleting .deletable {
+  cursor: url("img/rmv-vtx-active.svg") 0 0, auto;
+}
+
 .selected {
-  stroke: rgba(255, 0, 0, 0.5);
+  stroke: rgba(255, 0, 0, 1);
+  stroke-width: 3;
 }

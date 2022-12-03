@@ -5,9 +5,12 @@
 ]>
 <svg version="1.1"
 	 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:a="http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/"
-	 x="0px" y="0px" width="25px" height="25px" viewBox="-8 -4.003 25 25" enable-background="new -8 -4.003 25 25"
-	 xml:space="preserve">
+	 x="0px" y="0px" width="25px" height="25px" viewBox="0 0 25 25" enable-background="new 0 0 25 25" xml:space="preserve">
 <defs>
 </defs>
-<polygon points="0,0 0.039,16.989 4,12.999 5,11.997 6,11.997 6,11.997 12,11.997 "/>
+<g>
+	<polygon points="0.251,0.605 16.341,16.69 7.06,16.69 6.883,16.764 5.471,18.178 0.304,23.384 	"/>
+	<path fill="#FFFFFF" d="M0.503,1.209L15.737,16.44H8.472H7.06l-0.354,0.146l-1.413,1.415l-4.741,4.776L0.503,1.209 M0,0
+		l0.055,23.989l5.593-5.635L7.06,16.94h1.412h8.472L0,0L0,0z"/>
+</g>
 </svg>
