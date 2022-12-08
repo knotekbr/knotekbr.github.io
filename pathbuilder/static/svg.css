@@ -1,9 +1,13 @@
 svg.adding {
-  cursor: url("img/add-vtx.svg") 0 0, auto;
+  cursor: url("img/cursors/add-vtx.svg") 0 0, auto;
 }
 
 svg.deleting {
-  cursor: url("img/rmv-vtx-inactive.svg") 0 0, auto;
+  cursor: url("img/cursors/rmv-vtx-inactive.svg") 0 0, auto;
+}
+
+svg:not(.adding):not(.deleting) {
+  pointer-events: none;
 }
 
 #test-point {
@@ -14,12 +18,12 @@ svg.deleting {
   fill: rgba(0, 255, 0, 1);
 }
 
-svg:not(.deleting) .movable {
+svg.adding .movable {
   cursor: move;
 }
 
 svg.deleting .deletable {
-  cursor: url("img/rmv-vtx-active.svg") 0 0, auto;
+  cursor: url("img/cursors/rmv-vtx-active.svg") 0 0, auto;
 }
 
 .selected {

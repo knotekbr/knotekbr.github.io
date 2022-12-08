@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Polygon Test</title>
 
-    <link rel="stylesheet" type="text/css" href="static/main.css" />
+    <link rel="stylesheet" type="text/css" href="static/main.css?v=1.0" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
@@ -15,77 +15,6 @@
     />
   </head>
   <body>
-    <div id="app-wrapper">
-      <div id="ui-container">
-        <!--
-      <div id="ui-panel">
-        <div class="tool-btn" id="test-btn" title="Move Tool (V)">
-          <img class="tool-icon" src="static/img/select.svg" />
-        </div>
-        <div class="tool-btn selected" title="Vertex Creation Tool (A)">
-          <img class="tool-icon" src="static/img/add-vtx.svg" />
-        </div>
-        <div class="tool-btn" title="Vertex Deletion Tool (D)">
-          <img class="tool-icon" src="static/img/rmv-vtx.svg" />
-        </div>
-      </div>
-      -->
-        <div id="test-ui-panel">
-          <span class="title">Create</span>
-          <span class="txt-btn active" id="move-map-btn">Move Map <kbd>M</kbd></span>
-          <span class="txt-btn" id="add-vtx-btn">Add/Move Vertices <kbd>V</kbd></span>
-          <span class="txt-btn" id="rmv-vtx-btn">Delete Vertices <kbd>D</kbd></span>
-          <span class="title">Generate</span>
-          <span class="txt-btn" id="path-btn">Generate Path</span>
-          <span class="title">Tools</span>
-          <span class="txt-btn" id="clear-path-btn">Clear Path</span>
-          <span class="txt-btn" id="show-hide-btn">Hide Polygon</span>
-          <span class="txt-btn" id="reset-btn">Reset Tool</span>
-        </div>
-        <div id="directions-panel">
-          <span class="title">Directions</span>
-          <ul>
-            <li>
-              Select <b>Move Map</b> or hold the <kbd>Space</kbd> key and drag the map to move to
-              the mission location
-            </li>
-            <li>
-              Select <b>Add/Move Vertices</b> and click on the map to build a polygon around the
-              mission area. Existing vertices can be dragged to new locations
-            </li>
-            <li>Select <b>Delete Vertices</b> and click an existing vertex to remove it</li>
-            <li>
-              <b>Build Path</b> will generate the path that covers the polygon
-              <ul>
-                <li>The path is displayed as red lines</li>
-                <li>A blue circle traces the path to show waypoint order</li>
-                <li>
-                  Regions generated during this process are displayed as multicolored backgrounds
-                </li>
-              </ul>
-            </li>
-            <li><b>Clear Path</b> removes the existing path, region colors, and trace animation</li>
-            <li>
-              <b>Hide/Show Polygon</b> toggles polygon visibility to make the path easier to view
-            </li>
-            <li><b>Reset Tool</b> resets the tool to its initial state</li>
-          </ul>
-          <span class="title">To Do</span>
-          <ul>
-            <li>Add GPS resolution setting (currently defaults to 2m)</li>
-            <li>Add path direction (horizontal/vertical) setting</li>
-            <li>Add "Go to Coordinates" function to quickly navigate to a known lat/long</li>
-            <li>Generate path text that can be copied and used in Mission Planner</li>
-            <li>Save and load polygons instead of recreating them each time</li>
-            <li>UI improvements</li>
-            <li>General code cleanup and stability improvements</li>
-          </ul>
-        </div>
-      </div>
-      <div id="map-container">
-        <div id="svg-container"></div>
-      </div>
-    </div>
-    <script src="dist/bundle.js" async defer></script>
+    <script src="dist/bundle.js?v=1.0" async defer></script>
   </body>
 </html>
