@@ -36,6 +36,12 @@ fieldset {
   gap: 10px;
 }
 
+@media (max-width: 800px) {
+  #a1-input-wrapper {
+    flex-direction: column;
+  }
+}
+
 #a1-input {
   flex: 1;
 
@@ -54,6 +60,7 @@ fieldset {
   border-radius: 5px;
   padding: 5px;
   cursor: pointer;
+  text-align: center;
   user-select: none;
 }
 
